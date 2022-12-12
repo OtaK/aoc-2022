@@ -1,4 +1,4 @@
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::Result;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, strum::EnumString, strum::AsRefStr)]
 #[repr(u64)]
@@ -14,9 +14,25 @@ enum Choice {
 impl Choice {
     pub fn wins_against(&self, other: Choice) -> bool {
         match self {
-            Choice::Rock => other == Choice::Scissors,
-            Choice::Paper => other == Choice::Rock,
-            Choice::Scissors => other == Choice::Paper,
+            Self::Rock => other == Self::Scissors,
+            Self::Paper => other == Self::Rock,
+            Self::Scissors => other == Self::Paper,
+        }
+    }
+
+    pub fn solve_outcome(&self, desired_outcome: &ChoiceFightOutcome) -> Self {
+        match desired_outcome {
+            ChoiceFightOutcome::Loss => match self {
+                Self::Rock => Self::Scissors,
+                Self::Paper => Self::Rock,
+                Self::Scissors => Self::Paper,
+            },
+            ChoiceFightOutcome::Draw => *self,
+            ChoiceFightOutcome::Win => match self {
+                Choice::Rock => Self::Paper,
+                Choice::Paper => Self::Scissors,
+                Choice::Scissors => Self::Rock,
+            },
         }
     }
 
@@ -25,11 +41,14 @@ impl Choice {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, strum::EnumString, strum::AsRefStr)]
 #[repr(u64)]
 enum ChoiceFightOutcome {
+    #[strum(serialize = "X")]
     Loss = 0,
+    #[strum(serialize = "Y")]
     Draw = 3,
+    #[strum(serialize = "Z")]
     Win = 6,
 }
 
@@ -96,9 +115,9 @@ impl StrategyGuide {
 
 fn main() -> Result<()> {
     use std::io::BufRead as _;
-    use std::str::FromStr as _;
 
-    let mut guide = StrategyGuide::default();
+    let mut guide_step1 = StrategyGuide::default();
+    let mut guide_step2 = StrategyGuide::default();
 
     let file = std::fs::File::open("./src/rps_strategy_guide.txt")?;
     let lines = std::io::BufReader::new(file).lines();
@@ -109,24 +128,30 @@ fn main() -> Result<()> {
                 continue;
             }
 
-            let choices = strategy_line
-                .split(" ")
-                .map(|choice| Ok(Choice::from_str(choice)?))
-                .collect::<Result<Vec<Choice>>>()?;
-
+            let choices: Vec<&str> = strategy_line.split(" ").collect();
             assert_eq!(choices.len(), 2);
-            let opponent = choices[0];
-            let me = choices[1];
+
+            let opponent: Choice = choices[0].parse()?;
+            let me_step1: Choice = choices[1].parse()?;
+            let desired_outcome: ChoiceFightOutcome = choices[1].parse()?;
+            let me = opponent.solve_outcome(&desired_outcome);
 
             let fight = ChoiceFight { me, opponent };
+            guide_step2.0.push(fight);
 
-            guide.0.push(fight);
+            let fight = ChoiceFight {
+                me: me_step1,
+                opponent,
+            };
+            guide_step1.0.push(fight);
         }
     }
 
-    let MatchResult { me, opponent } = guide.points_scored();
+    let MatchResult { me, opponent } = guide_step1.points_scored();
+    println!("[Step 1] Match result: me [{me}] vs opponent [{opponent}]");
 
-    println!("Match result: me [{me}] vs opponent [{opponent}]");
+    let MatchResult { me, opponent } = guide_step2.points_scored();
+    println!("[Step 2] Match result: me [{me}] vs opponent [{opponent}]");
 
     Ok(())
 }

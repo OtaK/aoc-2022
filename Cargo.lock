@@ -87,6 +87,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "day3"
+version = "0.0.0"
+dependencies = [
+ "color-eyre",
+]
+
+[[package]]
 name = "eyre"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
